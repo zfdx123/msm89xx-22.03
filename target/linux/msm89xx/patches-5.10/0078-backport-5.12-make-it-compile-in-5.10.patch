@@ -1,0 +1,89 @@
+diff --git a/drivers/input/input.c b/drivers/input/input.c
+index 3cfd2c18e..41377bfa1 100644
+--- a/drivers/input/input.c
++++ b/drivers/input/input.c
+@@ -2127,6 +2127,14 @@ void input_enable_softrepeat(struct input_dev *dev, int delay, int period)
+ }
+ EXPORT_SYMBOL(input_enable_softrepeat);
+ 
++bool input_device_enabled(struct input_dev *dev)
++{
++	lockdep_assert_held(&dev->mutex);
++
++	return dev->users > 0;
++}
++EXPORT_SYMBOL_GPL(input_device_enabled);
++
+ /**
+  * input_register_device - register device with input core
+  * @dev: device to be registered
+diff --git a/drivers/soc/qcom/rpmpd.c b/drivers/soc/qcom/rpmpd.c
+index f2168e425..b61624190 100644
+--- a/drivers/soc/qcom/rpmpd.c
++++ b/drivers/soc/qcom/rpmpd.c
+@@ -116,6 +116,26 @@ struct rpmpd_desc {
+ 
+ static DEFINE_MUTEX(rpmpd_lock);
+ 
++/* msm8916 RPM Power Domains */
++DEFINE_RPMPD_PAIR(msm8916, vddcx, vddcx_ao, SMPA, CORNER, 1);
++DEFINE_RPMPD_PAIR(msm8916, vddmx, vddmx_ao, LDOA, CORNER, 3);
++
++DEFINE_RPMPD_VFC(msm8916, vddcx_vfc, SMPA, 1);
++
++static struct rpmpd *msm8916_rpmpds[] = {
++	[MSM8916_VDDCX] =	&msm8916_vddcx,
++	[MSM8916_VDDCX_AO] =	&msm8916_vddcx_ao,
++	[MSM8916_VDDCX_VFC] =	&msm8916_vddcx_vfc,
++	[MSM8916_VDDMX] =	&msm8916_vddmx,
++	[MSM8916_VDDMX_AO] =	&msm8916_vddmx_ao,
++};
++
++static const struct rpmpd_desc msm8916_desc = {
++	.rpmpds = msm8916_rpmpds,
++	.num_pds = ARRAY_SIZE(msm8916_rpmpds),
++	.max_state = MAX_8996_RPMPD_STATE,
++};
++
+ /* msm8976 RPM Power Domains */
+ DEFINE_RPMPD_PAIR(msm8976, vddcx, vddcx_ao, SMPA, LEVEL, 2);
+ DEFINE_RPMPD_PAIR(msm8976, vddmx, vddmx_ao, SMPA, LEVEL, 6);
+@@ -221,6 +241,7 @@ static const struct rpmpd_desc qcs404_desc = {
+ };
+ 
+ static const struct of_device_id rpmpd_match_table[] = {
++	{ .compatible = "qcom,msm8916-rpmpd", .data = &msm8916_desc },
+ 	{ .compatible = "qcom,msm8976-rpmpd", .data = &msm8976_desc },
+ 	{ .compatible = "qcom,msm8996-rpmpd", .data = &msm8996_desc },
+ 	{ .compatible = "qcom,msm8998-rpmpd", .data = &msm8998_desc },
+diff --git a/include/dt-bindings/power/qcom-rpmpd.h b/include/dt-bindings/power/qcom-rpmpd.h
+index 5e61eaf73..83dae2cab 100644
+--- a/include/dt-bindings/power/qcom-rpmpd.h
++++ b/include/dt-bindings/power/qcom-rpmpd.h
+@@ -64,6 +64,13 @@
+ #define RPMH_REGULATOR_LEVEL_TURBO	384
+ #define RPMH_REGULATOR_LEVEL_TURBO_L1	416
+ 
++/* MSM8916 Power Domain Indexes */
++#define MSM8916_VDDCX		0
++#define MSM8916_VDDCX_AO	1
++#define MSM8916_VDDCX_VFC	2
++#define MSM8916_VDDMX		3
++#define MSM8916_VDDMX_AO	4
++
+ /* MSM8976 Power Domain Indexes */
+ #define MSM8976_VDDCX		0
+ #define MSM8976_VDDCX_AO	1
+diff --git a/include/linux/input.h b/include/linux/input.h
+index 56f2fd32e..eda4587db 100644
+--- a/include/linux/input.h
++++ b/include/linux/input.h
+@@ -502,6 +502,8 @@ bool input_match_device_id(const struct input_dev *dev,
+ 
+ void input_enable_softrepeat(struct input_dev *dev, int delay, int period);
+ 
++bool input_device_enabled(struct input_dev *dev);
++
+ extern struct class input_class;
+ 
+ /**

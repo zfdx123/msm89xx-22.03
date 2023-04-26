@@ -1,0 +1,17 @@
+diff --git a/arch/arm64/boot/dts/qcom/pm8916.dtsi b/arch/arm64/boot/dts/qcom/pm8916.dtsi
+index 42180f1b5dbb..382887b227f1 100644
+--- a/arch/arm64/boot/dts/qcom/pm8916.dtsi
++++ b/arch/arm64/boot/dts/qcom/pm8916.dtsi
+@@ -118,6 +118,12 @@ pm8916_1: pmic@1 {
+ 		#address-cells = <1>;
+ 		#size-cells = <0>;
+ 
++		pm8916_pwm: pwm@bc00 {
++			compatible = "qcom,pm8916-pwm";
++			#pwm-cells = <2>;
++			status = "disabled";
++		};
++
+ 		pm8916_vib: vibrator@c000 {
+ 			compatible = "qcom,pm8916-vib";
+ 			reg = <0xc000>;
